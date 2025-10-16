@@ -28,22 +28,23 @@ This repo contains the foundational product docs for BookTok.
 - Engineering Backlog (CSV): backlog/EngineeringBacklog.csv
 
 ## Repo Structure
+
 .
 ├─ README.md
 ├─ docs/
-│ ├─ PRD.md
-│ ├─ DesignCopy.md
-│ ├─ SecurityChecklist.md
-│ ├─ CompetitiveLandscape.md
-│ └─ API/
-│ └─ auth-register.yaml
+│  ├─ PRD.md
+│  ├─ DesignCopy.md
+│  ├─ SecurityChecklist.md
+│  ├─ CompetitiveLandscape.md
+│  └─ API/
+│     └─ auth-register.yaml
 ├─ frontend/
-│ └─ components/
-│ └─ MainNavigationBar.tsx
-└─ backlog/
-└─ EngineeringBacklog.csv
-
-text
+│  └─ components/
+│     └─ MainNavigationBar.tsx
+├─ backlog/
+│  └─ EngineeringBacklog.csv
+└─ scripts/
+   └─ package-docs.sh
 
 
 ## How to Use
