@@ -1,0 +1,6 @@
+$stamp=(Get-Date -Format "yyyyMMdd-HHmmss"); $hash=(git rev-parse --short HEAD); 
+$out="booktok-docs-$stamp-$hash.zip"; `
+Compress-Archive -Path README.md, docs\PRD.md, docs\DesignCopy.md, 
+docs\SecurityChecklist.md, docs\CompetitiveLandscape.md, docs\API\auth-register.yaml, 
+frontend\components\MainNavigationBar.tsx, backlog\EngineeringBacklog.csv -DestinationPath $out
+Get-FileHash $out -Algorithm SHA256
