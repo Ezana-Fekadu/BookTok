@@ -36,15 +36,46 @@ This repo contains the foundational product docs for BookTok.
 │  ├─ DesignCopy.md
 │  ├─ SecurityChecklist.md
 │  ├─ CompetitiveLandscape.md
-│  └─ API/
-│     └─ auth-register.yaml
+│  ├─ AnalyticsTaxonomy.md
+│  ├─ ContentGuidelines.md
+│  ├─ ModerationPolicy.md
+│  ├─ IncidentRunbook.md
+│  ├─ ObservabilityDashboards.md
+│  ├─ AccessibilityChecklist.md
+│  ├─ DataRetentionPolicy.md
+│  ├─ ReleaseChecklist.md
+│  ├─ ExperimentTemplate.md
+│  ├─ AppStoreListing.md
+│  ├─ PrivacyPolicy-template.md
+│  └─ TermsOfService-template.md
+├─ docs/API/
+│  └─ auth-register.yaml
 ├─ frontend/
-│  └─ components/
-│     └─ MainNavigationBar.tsx
+│  ├─ components/
+│  │  ├─ MainNavigationBar.tsx
+│  │  ├─ MiniPlayer.tsx
+│  │  ├─ TrailerCard.tsx
+│  │  └─ RecorderSheet.tsx
+│  ├─ screens/
+│  │  └─ OnboardingPreferences.tsx
+│  └─ i18n.ts
+├─ i18n/
+│  ├─ en.json
+│  └─ es.json
+├─ backend/
+│  └─ db/
+│     └─ schema.sql
+├─ .github/
+│  └─ workflows/
+│     └─ ci.yml
+├─ .editorconfig
+├─ .eslintrc.js
+├─ .prettierrc.json
 ├─ backlog/
 │  └─ EngineeringBacklog.csv
 └─ scripts/
-   └─ package-docs.sh
+   ├─ package-docs.sh
+   └─ validate-openapi.sh
 
 
 ## How to Use
