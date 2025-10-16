@@ -1,0 +1,414 @@
+openapi: 3.0.3
+info:
+  title: BookTok API
+  version: 1.0.0
+  description: |
+    BookTok REST API — User Registration
+    This endpoint registers a new user with email and password, creates a profile record in Postgres,
+    and triggers an email verification via the connected auth provider (e.g., Auth0/Cognito).
+servers:
+  - url: https://api.booktok.app/v1
+    description: Production
+  - url: https://staging.api.booktok.app/v1
+    description: Staging
+tags:
+  - name: Auth
+    description: Authentication and onboarding
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      description: |
+        Create a new user using email and password. On success, a verification email is sent to the provided email address.
+        - This endpoint is unauthenticated.
+        - Idempotent when an Idempotency-Key header is provided.
+        - Rate limited to prevent abuse.
+      operationId: registerUser
+      security: []  # Public endpoint
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/XRequestId'
+        - name: inviteCode
+          in: query
+          description: Optional invite or referral code to attribute the registration.
+          required: false
+          schema:
+            type: string
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              emailPassword:
+                summary: Email + password registration
+                value:
+                  displayName: "Maya Chen"
+                  email: "maya@example.com"
+                  password: "S3curePass!"
+                  ageConfirmed: true
+                  termsAccepted: true
+                  marketingOptIn: true
+                  recaptchaToken: "03AF6aN9y...."
+      responses:
+        '201':
+          description: User created. A verification email may have been sent.
+          headers:
+            Location:
+              description: URL of the created user resource.
+              schema:
+                type: string
+                format: uri
+              example: https://api.booktok.app/v1/users/usr_01HZYTE7EM3Z3R1CN9M9F6X9JQ
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/XRateLimitLimit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/XRateLimitRemaining'
+            X-RateLimit-Reset:
+              $ref: '#/components/headers/XRateLimitReset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+              examples:
+                success:
+                  value:
+                    user:
+                      id: "usr_01HZYTE7EM3Z3R1CN9M9F6X9JQ"
+                      displayName: "Maya Chen"
+                      email: "maya@example.com"
+                      emailVerified: false
+                      avatarUrl: null
+                      createdAt: "2025-10-16T12:34:56Z"
+                      updatedAt: "2025-10-16T12:34:56Z"
+                    verification:
+                      method: "email"
+                      status: "sent"
+                      expiresAt: "2025-10-16T12:49:56Z"
+        '400':
+          description: Bad request — invalid payload or CAPTCHA failed.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                captchaFailed:
+                  summary: CAPTCHA verification failed
+                  value:
+                    error:
+                      code: "captcha_failed"
+                      message: "CAPTCHA verification failed. Please try again."
+                termsNotAccepted:
+                  summary: Terms not accepted
+                  value:
+                    error:
+                      code: "terms_not_accepted"
+                      message: "You must agree to the Terms of Service and Privacy Policy."
+        '409':
+          description: Conflict — email already registered.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emailExists:
+                  value:
+                    error:
+                      code: "email_exists"
+                      message: "An account with this email already exists. Try logging in instead."
+        '422':
+          description: Unprocessable Entity — validation errors.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                invalidFields:
+                  value:
+                    error:
+                      code: "validation_error"
+                      message: "There were validation errors."
+                      fieldErrors:
+                        - field: "displayName"
+                          code: "too_short"
+                          message: "Display name must be at least 2 characters."
+                        - field: "password"
+                          code: "weak_password"
+                          message: "Password must be at least 8 characters."
+                        - field: "email"
+                          code: "invalid_email"
+                          message: "Enter a valid email address."
+        '429':
+          description: Too Many Requests — rate limit exceeded.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+            X-RateLimit-Limit:
+              $ref: '#/components/headers/XRateLimitLimit'
+            X-RateLimit-Remaining:
+              $ref: '#/components/headers/XRateLimitRemaining'
+            X-RateLimit-Reset:
+              $ref: '#/components/headers/XRateLimitReset'
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                ratelimited:
+                  value:
+                    error:
+                      code: "rate_limited"
+                      message: "Too many attempts. Try again in 10 minutes."
+        '500':
+          description: Internal Server Error.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  value:
+                    error:
+                      code: "server_error"
+                      message: "Something went wrong. Please try again."
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Not required for registration; used for authenticated endpoints.
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        Provide a unique key to make POST requests idempotent.
+        If the same key is sent within 24 hours, the original response is returned.
+      schema:
+        type: string
+        maxLength: 255
+      example: "reg_3b2f6a2a-6d6c-4e88-8e2f-4a6c1d7d9b2a"
+    XRequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: Optional client-supplied correlation ID for tracing.
+      schema:
+        type: string
+        maxLength: 128
+      example: "req_01HZYTE9V2V0ZP7X4M3T"
+
+  headers:
+    XRequestId:
+      description: Server-generated correlation ID for this request.
+      schema:
+        type: string
+      example: "req_01HZYTE9V2V0ZP7X4M3T"
+    XRateLimitLimit:
+      description: The number of allowed requests in the current rate limit window.
+      schema:
+        type: integer
+      example: 10
+    XRateLimitRemaining:
+      description: The number of remaining requests in the current rate limit window.
+      schema:
+        type: integer
+      example: 9
+    XRateLimitReset:
+      description: Seconds until the rate limit resets.
+      schema:
+        type: integer
+      example: 600
+    RetryAfter:
+      description: Seconds to wait before retrying the request.
+      schema:
+        type: integer
+      example: 600
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - displayName
+        - email
+        - password
+        - ageConfirmed
+        - termsAccepted
+      properties:
+        displayName:
+          type: string
+          description: Public display name shown on the profile.
+          minLength: 2
+          maxLength: 40
+          example: "Maya Chen"
+        email:
+          type: string
+          format: email
+          description: User email address.
+          example: "maya@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          description: Minimum 8 characters.
+          example: "S3curePass!"
+        ageConfirmed:
+          type: boolean
+          description: Must be true to confirm the user is 13+.
+          example: true
+        termsAccepted:
+          type: boolean
+          description: Must be true to accept Terms of Service and Privacy Policy.
+          example: true
+        marketingOptIn:
+          type: boolean
+          description: Optional consent to receive recommendations and tips.
+          default: false
+          example: true
+        recaptchaToken:
+          type: string
+          description: CAPTCHA token to prevent automated sign-ups.
+          nullable: true
+          example: "03AF6aN9y...."
+
+    RegisterResponse:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          $ref: '#/components/schemas/UserPublic'
+        verification:
+          type: object
+          nullable: true
+          properties:
+            method:
+              type: string
+              enum: [email]
+            status:
+              type: string
+              enum: [sent, skipped]
+            expiresAt:
+              type: string
+              format: date-time
+          description: Email verification status for this registration.
+
+    UserPublic:
+      type: object
+      required:
+        - id
+        - displayName
+        - email
+        - emailVerified
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          description: Unique user identifier.
+          example: "usr_01HZYTE7EM3Z3R1CN9M9F6X9JQ"
+        displayName:
+          type: string
+          example: "Maya Chen"
+        email:
+          type: string
+          format: email
+          example: "maya@example.com"
+        emailVerified:
+          type: boolean
+          example: false
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: null
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-10-16T12:34:56Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-10-16T12:34:56Z"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code.
+              example: "email_exists"
+            message:
+              type: string
+              description: Human-readable error message.
+              example: "An account with this email already exists. Try logging in instead."
+            docUrl:
+              type: string
+              format: uri
+              nullable: true
+              description: Link to documentation for this error code.
+              example: "https://docs.booktok.app/errors#email_exists"
+
+    ValidationErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            error:
+              type: object
+              properties:
+                fieldErrors:
+                  type: array
+                  description: Field-level validation errors.
+                  items:
+                    $ref: '#/components/schemas/FieldError'
+
+    FieldError:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          description: Name of the field with an error.
+          example: "email"
+        code:
+          type: string
+          description: Machine-readable field error code.
+          example: "invalid_email"
+        message:
+          type: string
+          description: Human-readable description of the error.
+          example: "Enter a valid email address."
